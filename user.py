@@ -11,7 +11,7 @@ fakeusers = [f"user{fakedata.unique.random_number(digits=8)}" for i in range(20)
 requests = ["rate_limit_change", "rate_speed_change"]
 
 def generate_random_request() -> dict:
-    return {
+    fakerequest = {
         "request_id": str(uuid.uuid4()),
         "user_id": random.choice(fakeusers),
         "request_type": random.choice(requests),
@@ -19,3 +19,5 @@ def generate_random_request() -> dict:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "status": "pending"
     }
+
+    return fakerequest
