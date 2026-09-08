@@ -1,5 +1,5 @@
 import json
-from random import randint, choice, uniform
+from random import choice, uniform
 from time import sleep
 from uuid import uuid4
 from datetime import datetime, timezone
@@ -9,13 +9,15 @@ from kafka import KafkaProducer
 fakedata = Faker()
 fakeusers = [f"user{fakedata.unique.random_number(digits=8)}" for i in range(20)]
 requests = ["rate_limit_change", "rate_speed_change"]
+requests_data = [-1, 0, 1, 2]
+
 
 def generate_random_request() -> dict:
     fakerequest = {
         "request_id": str(uuid4()),
         "user_id": choice(fakeusers),
         "request_type": choice(requests),
-        "request_data": randint(-1,+2),
+        "request_data": choice(requests_data),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "status": "pending"
     }
@@ -27,7 +29,7 @@ def main() -> None:
         bootstrap_servers="localhost:9092",
         value_serializer=lambda request: json.dumps(request).encode("utf-8")
         """
-        value_serializer is required because kafka sends very basic datatypes and not json
+        value_serializer is required because kafka sends basic datatypes and not json
         """
     )
     try:
@@ -39,6 +41,7 @@ def main() -> None:
 
     except KeyboardInterrupt:
         pass
+    
     finally:
         requestproducer.flush()
         requestproducer.close()
