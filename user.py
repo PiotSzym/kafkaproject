@@ -5,6 +5,7 @@ from uuid import uuid4
 from datetime import datetime, timezone
 from faker import Faker
 from kafka import KafkaProducer
+from kafka.serializer import Serializer
 
 fakedata = Faker()
 fakeusers = [f"user{fakedata.unique.random_number(digits=8)}" for i in range(20)]
@@ -24,14 +25,19 @@ def generate_random_request() -> dict:
 
     return fakerequest
 
+class JSONSerializer(Serializer):
+    def serialize(self, topic, value):
+        return json.dumps(value).encode("utf-8")
+
+# DeprecationWarning: value_serializer does not implement kafka.serializer.Serializer
+# kafka REQUIRES the spelling serializer not serialiser
+
 def main() -> None:
     requestproducer = KafkaProducer(
         bootstrap_servers="localhost:9092",
-        value_serializer=lambda request: json.dumps(request).encode("utf-8")
-        """
-        value_serializer is required because kafka sends basic datatypes and not json
-        """
+        value_serializer=JSONSerializer()
     )
+    # value_serializer is required because kafka sends basic datatypes and not json
     try:
         while True:
             request = generate_random_request()
