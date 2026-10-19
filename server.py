@@ -1,10 +1,11 @@
 import json
-from rate_limiter.mainclass import RateLimiter
+from rate_limiter.tokenbucket import TokenBucketRateLimiter
 from kafka import KafkaConsumer
 import psycopg2
 
 valid_requests = ["rate_limit_change", "rate_speed_change"]
 valid_requests_data = [-1, 0, 1, 2]
+limiter = TokenBucketRateLimiter(5, 1)
 
 def is_valid_request(request: dict) -> bool:
     required_fields = {"request_id", "user_id", "request_type", "request_data", "timestamp", "status"}
@@ -19,9 +20,10 @@ def is_valid_request(request: dict) -> bool:
     return True
 
 def get_connection():
-    return psycopg2.connect(host="localhost", port=5432, dbname="events", user="user", password="password")
+    return psycopg2.connect(host="localhost", port=5432, dbname="events", user="pipeline", password="pipeline")
 
 def save_accepted(cursor, event: dict) -> None:
+    # %s is used for args, harder to inject into
     cursor.execute(
         """
         INSERT INTO accepted_requests
@@ -49,23 +51,24 @@ def main() -> None:
 
     for message in consumer:
         event = message.value
-        user = RateLimiter(id)
 
         if not is_valid_request(event):
             print(f"REJECTED (invalid): {event}")
             continue
 
-        if not user.allow(id, user.bucket):
-            print(f"REJECTED (rate limited): {event["user_id"]}")
+        user_id = event["user_id"]
+
+        if not limiter.tokencheck(user_id):
+            print(f"REJECTED (rate limited): {user_id}")
             continue
 
         print(f"ACCEPTED: {event}")
         save_accepted(cursor, event)
 
         if event["request_type"] == "rate_limit_change":
-            RateLimiter.adjust_limits(user, tokens_max=(event["request_data"]))
+            limiter.changemax(user_id, delta_max=event["request_data"])
         else:
-            RateLimiter.adjust_limits(user, refill_rate=(event["request_data"]))
-
+            limiter.changerefill(user_id, delta_refill=event["request_data"])
+        
 if __name__ == "__main__":
     main()
