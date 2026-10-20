@@ -1,3 +1,4 @@
 kafka-python
 faker
 git+https://github.com/PiotSzym/ratelimiter
+git+https://github.com/PiotSzym/airflow
